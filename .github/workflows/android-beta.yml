@@ -1,0 +1,74 @@
+name: Android beta
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*-beta*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Choose beta version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            APP_VERSION="${GITHUB_REF_NAME#v}"
+          else
+            APP_VERSION="0.1.0-beta.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build debug APK
+        run: >-
+          gradle --no-daemon :app:assembleDebug
+          -PappVersion="${{ steps.version.outputs.app_version }}"
+          -PappVersionCode="${{ github.run_number }}"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mos-camera-${{ steps.version.outputs.app_version }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish beta release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+        run: |
+          RELEASE_TAG="v${APP_VERSION}"
+          gh release create "$RELEASE_TAG" \
+            app/build/outputs/apk/debug/app-debug.apk \
+            --title "MOS Camera ${RELEASE_TAG}" \
+            --notes "Automated beta APK for testing." \
+            --prerelease \
+            --target "$GITHUB_SHA"

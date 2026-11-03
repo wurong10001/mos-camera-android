@@ -1,0 +1,23 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'org.mos.camera'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'org.mos.camera'
+        minSdk 23
+        targetSdk 35
+        versionCode providers.gradleProperty('appVersionCode').getOrElse('1').toInteger()
+        versionName providers.gradleProperty('appVersion').getOrElse('0.1.0-beta')
+    }
+}
+
+dependencies {
+    implementation 'androidx.activity:activity:1.10.1'
+    implementation 'androidx.camera:camera-camera2:1.4.2'
+    implementation 'androidx.camera:camera-lifecycle:1.4.2'
+    implementation 'androidx.camera:camera-core:1.4.2'
+}
